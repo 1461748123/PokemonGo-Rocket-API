@@ -20,8 +20,6 @@ namespace PokemonGo.RocketAPI.Helpers
         private readonly double _latitude;
         private readonly double _longitude;
         private readonly double _accuracy;
-        private readonly double _altitude;
-        private readonly double _floor;
         private readonly AuthTicket _authTicket;
         static private readonly Stopwatch _internalWatch = new Stopwatch();
         private readonly ISettings settings;
@@ -89,7 +87,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 Latitude = (float)_latitude,
                 Longitude = (float)_longitude,
                 HorizontalAccuracy = (float)_accuracy,
-                Floor = (uint)_floor,
+                Floor = 3
                 LocationType = 1
             });
 
