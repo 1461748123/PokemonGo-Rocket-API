@@ -19,7 +19,9 @@ namespace PokemonGo.RocketAPI.Helpers
         private readonly AuthType _authType;
         private readonly double _latitude;
         private readonly double _longitude;
+        private readonly double _accuracy;
         private readonly double _altitude;
+        private readonly double _floor;
         private readonly AuthTicket _authTicket;
         static private readonly Stopwatch _internalWatch = new Stopwatch();
         private readonly ISettings settings;
@@ -39,10 +41,10 @@ namespace PokemonGo.RocketAPI.Helpers
 
         private Unknown6 GenerateSignature(IEnumerable<IMessage> requests)
         {
-            var sig = new POGOProtos.Networking.Signature();
+            var sig = new POGOProtos.Networking.Envelopes.Signature();
             sig.TimestampSinceStart = (ulong)_internalWatch.ElapsedMilliseconds;
             sig.Timestamp = (ulong)DateTime.UtcNow.ToUnixTime();
-            sig.SensorInfo = new POGOProtos.Networking.Signature.Types.SensorInfo()
+            sig.SensorInfo = new POGOProtos.Networking.Envelopes.Signature.Types.SensorInfo()
             {
                 AccelNormalizedZ = GenRandom(9.8),
                 AccelNormalizedX = GenRandom(0.02),
@@ -62,7 +64,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 GyroscopeRawZ = GenRandom(0.0024566650390625),
                 AccelerometerAxes = 3
             };
-            sig.DeviceInfo = new POGOProtos.Networking.Signature.Types.DeviceInfo()
+            sig.DeviceInfo = new POGOProtos.Networking.Envelopes.Signature.Types.DeviceInfo()
             {
                 DeviceId = settings.DeviceId,
                 AndroidBoardName = settings.AndroidBoardName,
@@ -78,16 +80,16 @@ namespace PokemonGo.RocketAPI.Helpers
                 FirmwareType = settings.FirmwareType,
                 FirmwareFingerprint = settings.FirmwareFingerprint
             };
-            sig.LocationFix.Add(new POGOProtos.Networking.Signature.Types.LocationFix()
+            sig.LocationFix.Add(new POGOProtos.Networking.Envelopes.Signature.Types.LocationFix()
             {
-                Provider = "network",
-
+                Provider = "fused",
+                TimestampSnapshot = (ulong)_internalWatch.ElapsedMilliseconds - 200,
                 //Unk4 = 120,
+                Altitude = (float)_altitude,
                 Latitude = (float)_latitude,
                 Longitude = (float)_longitude,
-                Altitude = (float)_altitude,
-                TimestampSinceStart = (ulong)_internalWatch.ElapsedMilliseconds - 200,
-                Floor = 3,
+                HorizontalAccuracy = (float)_accuracy,
+                Floor = (uint)_floor,
                 LocationType = 1
             });
 
@@ -97,7 +99,7 @@ namespace PokemonGo.RocketAPI.Helpers
             x = new System.Data.HashFunction.xxHash(32, firstHash);
             var locationBytes = BitConverter.GetBytes(_latitude).Reverse()
                 .Concat(BitConverter.GetBytes(_longitude).Reverse())
-                .Concat(BitConverter.GetBytes(_altitude).Reverse()).ToArray();
+                .Concat(BitConverter.GetBytes(_accuracy).Reverse()).ToArray();
             sig.LocationHash1 = BitConverter.ToUInt32(x.ComputeHash(locationBytes), 0);
             //Compute 20
             x = new System.Data.HashFunction.xxHash(32, 0x1B845238);
@@ -110,7 +112,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 sig.RequestHash.Add(BitConverter.ToUInt64(x.ComputeHash(req.ToByteArray()), 0));
 
             //static for now
-            sig.Unk22 = ByteString.CopyFrom(new byte[16] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F });
+            sig.SessionHash = ByteString.CopyFrom(new byte[16] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F });
 
 
             Unknown6 val = new Unknown6();
@@ -160,7 +162,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 //Unknown6 = , //6
                 Latitude = _latitude, //7
                 Longitude = _longitude, //8
-                Altitude = _altitude, //9
+                Accuracy = _accuracy, //9
                 AuthTicket = _authTicket, //11
                 MsSinceLastLocationfix = 989 //12
             };
@@ -180,7 +182,7 @@ namespace PokemonGo.RocketAPI.Helpers
                 //Unknown6 = , //6
                 Latitude = _latitude, //7
                 Longitude = _longitude, //8
-                Altitude = _altitude, //9
+                Accuracy = _accuracy, //9
                 AuthInfo = new POGOProtos.Networking.Envelopes.RequestEnvelope.Types.AuthInfo
                 {
                     Provider = _authType == AuthType.Google ? "google" : "ptc",
