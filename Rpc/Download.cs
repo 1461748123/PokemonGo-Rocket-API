@@ -31,15 +31,15 @@ namespace PokemonGo.RocketAPI.Rpc
             return await PostProtoPayload<Request, DownloadItemTemplatesResponse>(RequestType.DownloadItemTemplates, new DownloadItemTemplatesMessage());
         }
 
-        public async Task<DownloadRemoteConfigVersionResponse> GetRemoteConfigVersion(uint appVersion, string deviceManufacturer, string deviceModel, string locale, Platform platform)
+        public async Task<DownloadRemoteConfigVersionResponse> GetRemoteConfigVersion(Platform platform, uint appVersion, string deviceManufacturer, string deviceModel, string locale)
         {
             return await PostProtoPayload<Request, DownloadRemoteConfigVersionResponse>(RequestType.DownloadRemoteConfigVersion, new DownloadRemoteConfigVersionMessage()
             {
-                AppVersion = appVersion,
+                Platform = platform,
                 DeviceManufacturer = deviceManufacturer,
                 DeviceModel = deviceModel,
                 Locale = locale,
-                Platform = platform
+                AppVersion = appVersion
             });
         }
 
@@ -47,11 +47,11 @@ namespace PokemonGo.RocketAPI.Rpc
         {
             return await PostProtoPayload<Request, GetAssetDigestResponse>(RequestType.GetAssetDigest, new GetAssetDigestMessage()
             {
-                AppVersion = appVersion,
+                Platform = platform,
                 DeviceManufacturer = deviceManufacturer,
                 DeviceModel = deviceModel,
                 Locale = locale,
-                Platform = platform
+                AppVersion = appVersion
             });
         }
 

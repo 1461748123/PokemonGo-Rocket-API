@@ -49,16 +49,7 @@ namespace PokemonGo.RocketAPI.Rpc
             #region Standard intial request messages in right Order
 
             var getPlayerMessage = new GetPlayerMessage();
-            var getHatchedEggsMessage = new GetHatchedEggsMessage();
-            var getInventoryMessage = new GetInventoryMessage
-            {
-                LastTimestampMs = DateTime.UtcNow.ToUnixTime()
-            };
-            var checkAwardedBadgesMessage = new CheckAwardedBadgesMessage();
-            var downloadSettingsMessage = new DownloadSettingsMessage
-            {
-                Hash = "2788184af4004004d6ab0740f7632983332106f6"
-            };
+            var checkChallengeMessage = new CheckChallengeMessage();
 
             #endregion
 
@@ -69,20 +60,8 @@ namespace PokemonGo.RocketAPI.Rpc
                     RequestMessage = getPlayerMessage.ToByteString()
                 }, new Request
                 {
-                    RequestType = RequestType.GetHatchedEggs,
-                    RequestMessage = getHatchedEggsMessage.ToByteString()
-                }, new Request
-                {
-                    RequestType = RequestType.GetInventory,
-                    RequestMessage = getInventoryMessage.ToByteString()
-                }, new Request
-                {
-                    RequestType = RequestType.CheckAwardedBadges,
-                    RequestMessage = checkAwardedBadgesMessage.ToByteString()
-                }, new Request
-                {
-                    RequestType = RequestType.DownloadSettings,
-                    RequestMessage = downloadSettingsMessage.ToByteString()
+                    RequestType = RequestType.CheckChallenge,
+                    RequestMessage = checkChallengeMessage.ToByteString()
                 });
 
 

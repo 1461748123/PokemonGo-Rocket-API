@@ -9,6 +9,7 @@ using PokemonGo.RocketAPI.Helpers;
 using POGOProtos.Networking.Requests;
 using POGOProtos.Networking.Requests.Messages;
 using POGOProtos.Networking.Responses;
+using POGOProtos.Networking.Envelopes;
 
 namespace PokemonGo.RocketAPI.Rpc
 {
@@ -18,7 +19,7 @@ namespace PokemonGo.RocketAPI.Rpc
         {
         }
 
-        public async Task<Tuple<GetMapObjectsResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse>> GetMapObjects()
+        public async Task<Tuple<GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse>> GetMapObjects()
         {
             #region Messages
 
@@ -29,6 +30,7 @@ namespace PokemonGo.RocketAPI.Rpc
                 Latitude = _client.CurrentLatitude,
                 Longitude = _client.CurrentLongitude
             };
+            var CheckChallengeMessage = new CheckChallengeMessage();
             var getHatchedEggsMessage = new GetHatchedEggsMessage();
             var getInventoryMessage = new GetInventoryMessage
             {
@@ -49,6 +51,9 @@ namespace PokemonGo.RocketAPI.Rpc
                     RequestMessage = getMapObjectsMessage.ToByteString()
                 },
                 new Request
+                { RequestType = RequestType.CheckChallenge,
+                    RequestMessage = CheckChallengeMessage.ToByteString() },
+                new Request
                 {
                     RequestType = RequestType.GetHatchedEggs,
                     RequestMessage = getHatchedEggsMessage.ToByteString()
@@ -65,7 +70,7 @@ namespace PokemonGo.RocketAPI.Rpc
                     RequestType = RequestType.DownloadSettings,
                     RequestMessage = downloadSettingsMessage.ToByteString()
                 });
-            return await PostProtoPayload<Request, GetMapObjectsResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse>(request);
+            return await PostProtoPayload<Request, GetMapObjectsResponse, CheckChallengeResponse, GetHatchedEggsResponse, GetInventoryResponse, CheckAwardedBadgesResponse, DownloadSettingsResponse>(request);
         }
 
         public async Task<GetIncensePokemonResponse> GetIncensePokemons()
