@@ -4,90 +4,107 @@ using POGOProtos.Networking;
 using POGOProtos.Networking.Envelopes;
 using POGOProtos.Networking.Requests;
 using System;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using PokemonGo.RocketAPI.Extensions;
 
 namespace PokemonGo.RocketAPI.Helpers
 {
     public class RequestBuilder
     {
+        public static double currentSpeed { get; set; }
         private readonly string _authToken;
         private readonly AuthType _authType;
         private readonly double _latitude;
         private readonly double _longitude;
-        private readonly double _accuracy;
+        private readonly double _accuracy = (float)Math.Round(GenRandom(50, 250), 7);
+        private readonly double _altitude;
+        private readonly double _currentSpeed;
         private readonly AuthTicket _authTicket;
-        static private readonly Stopwatch _internalWatch = new Stopwatch();
+        private int _startTime;
+        private ulong _nextRequestId;
         private readonly ISettings settings;
 
-        public RequestBuilder(string authToken, AuthType authType, double latitude, double longitude, double altitude, ISettings settings, AuthTicket authTicket = null)
+        public RequestBuilder(string authToken, AuthType authType, double latitude, double longitude, double altitude, double horizontalAccuracy, ISettings settings, AuthTicket authTicket = null)
         {
             _authToken = authToken;
             _authType = authType;
+            _currentSpeed = currentSpeed;
             _latitude = latitude;
             _longitude = longitude;
             _altitude = altitude;
-            this.settings = settings;
             _authTicket = authTicket;
-            if (!_internalWatch.IsRunning)
-                _internalWatch.Start();
+            _accuracy = horizontalAccuracy;
+            this.settings = settings;
+            _nextRequestId = Convert.ToUInt64(RandomDevice.NextDouble() * Math.Pow(10, 18));
+            if (_startTime == 0)
+                _startTime = Utils.GetTime(true);
         }
 
         private Unknown6 GenerateSignature(IEnumerable<IMessage> requests)
         {
-            var sig = new POGOProtos.Networking.Envelopes.Signature();
-            sig.TimestampSinceStart = (ulong)_internalWatch.ElapsedMilliseconds;
-            sig.Timestamp = (ulong)DateTime.UtcNow.ToUnixTime();
-            sig.SensorInfo = new POGOProtos.Networking.Envelopes.Signature.Types.SensorInfo()
+            var ticketBytes = _authTicket.ToByteArray();
+            var sig = new Signature()
             {
-                AccelNormalizedZ = GenRandom(9.8),
-                AccelNormalizedX = GenRandom(0.02),
-                AccelNormalizedY = GenRandom(0.3),
-                TimestampSnapshot = (ulong)_internalWatch.ElapsedMilliseconds - 230,
-                MagnetometerX = GenRandom(0.12271042913198471),
-                MagnetometerY = GenRandom(-0.015570580959320068),
-                MagnetometerZ = GenRandom(0.010850906372070313),
-                AngleNormalizedX = GenRandom(17.950439453125),
-                AngleNormalizedY = GenRandom(-23.36273193359375),
-                AngleNormalizedZ = GenRandom(-48.8250732421875),
-                AccelRawX = GenRandom(-0.0120010357350111),
-                AccelRawY = GenRandom(-0.04214850440621376),
-                AccelRawZ = GenRandom(0.94571763277053833),
-                GyroscopeRawX = GenRandom(7.62939453125e-005),
-                GyroscopeRawY = GenRandom(-0.00054931640625),
-                GyroscopeRawZ = GenRandom(0.0024566650390625),
-                AccelerometerAxes = 3
-            };
-            sig.DeviceInfo = new POGOProtos.Networking.Envelopes.Signature.Types.DeviceInfo()
-            {
-                DeviceId = settings.DeviceId,
-                AndroidBoardName = settings.AndroidBoardName,
-                AndroidBootloader = settings.AndroidBootloader,
-                DeviceBrand = settings.DeviceBrand,
-                DeviceModel = settings.DeviceModel,
-                DeviceModelIdentifier = settings.DeviceModelIdentifier,
-                DeviceModelBoot = settings.DeviceModelBoot,
-                HardwareManufacturer = settings.HardwareManufacturer,
-                HardwareModel = settings.HardwareModel,
-                FirmwareBrand = settings.FirmwareBrand,
-                FirmwareTags = settings.FirmwareTags,
-                FirmwareType = settings.FirmwareType,
-                FirmwareFingerprint = settings.FirmwareFingerprint
+                Timestamp = (ulong)Utils.GetTime(true),
+                TimestampSinceStart = (ulong)(Utils.GetTime(true) - _startTime),
+                LocationHash1 = Utils.GenerateLocation1(ticketBytes, _latitude, _longitude, _altitude),
+                LocationHash2 = Utils.GenerateLocation2(_latitude, _longitude, _altitude),
+                SensorInfo = new Signature.Types.SensorInfo()
+                {
+                    AccelNormalizedX = GenRandom(-0.31110161542892456, 0.1681540310382843),
+                    AccelNormalizedY = GenRandom(-0.6574847102165222, -0.07290205359458923),
+                    AccelNormalizedZ = GenRandom(-0.9943905472755432, -0.7463029026985168),
+                    TimestampSnapshot = (ulong)(Utils.GetTime(true) - _startTime - RandomDevice.Next(100, 400)),
+                    MagnetometerX = GenRandom(-0.139084026217, 0.138112977147),
+                    MagnetometerY = GenRandom(-0.2, 0.19),
+                    MagnetometerZ = GenRandom(-0.2, 0.4),
+                    AngleNormalizedX = GenRandom(-47.149471283, 61.8397789001),
+                    AngleNormalizedY = GenRandom(-47.149471283, 61.8397789001),
+                    AngleNormalizedZ = GenRandom(-47.149471283, 5),
+                    AccelRawX = GenRandom(0.0729667818829, 0.0729667818829),
+                    AccelRawY = GenRandom(-2.788630499244109, 3.0586791383810468),
+                    AccelRawZ = GenRandom(-0.34825887123552773, 0.19347580173737935),
+                    GyroscopeRawX = GenRandom(-0.9703824520111084, 0.8556089401245117),
+                    GyroscopeRawY = GenRandom(-1.7470258474349976, 1.4218578338623047),
+                    GyroscopeRawZ = GenRandom(-0.9681901931762695, 0.8396636843681335),
+                    AccelerometerAxes = 3
+                },
+                DeviceInfo = new Signature.Types.DeviceInfo()
+                {
+                    DeviceId = settings.DeviceId,
+                    AndroidBoardName = settings.AndroidBoardName,
+                    AndroidBootloader = settings.AndroidBootloader,
+                    DeviceBrand = settings.DeviceBrand,
+                    DeviceModel = settings.DeviceModel,
+                    DeviceModelIdentifier = settings.DeviceModelIdentifier,
+                    DeviceModelBoot = settings.DeviceModelBoot,
+                    HardwareManufacturer = settings.HardwareManufacturer,
+                    HardwareModel = settings.HardwareModel,
+                    FirmwareBrand = settings.FirmwareBrand,
+                    FirmwareTags = settings.FirmwareTags,
+                    FirmwareType = settings.FirmwareType,
+                    FirmwareFingerprint = settings.FirmwareFingerprint
+                }
             };
             sig.LocationFix.Add(new POGOProtos.Networking.Envelopes.Signature.Types.LocationFix()
             {
                 Provider = "fused",
-                TimestampSnapshot = (ulong)_internalWatch.ElapsedMilliseconds - 200,
-                //Unk4 = 120,
-                Altitude = (float)_altitude,
+                TimestampSnapshot = (ulong)(Utils.GetTime(true) - _startTime - RandomDevice.Next(100, 300)),
                 Latitude = (float)_latitude,
                 Longitude = (float)_longitude,
+                Altitude = (float)_altitude,
+                Speed = (float)_currentSpeed,
+                Course = -1,
                 HorizontalAccuracy = (float)_accuracy,
-                Floor = 3
+                VerticalAccuracy = RandomDevice.Next(2, 5),
+                ProviderStatus = 3,
+                Floor = 0,
                 LocationType = 1
             });
 
@@ -111,7 +128,7 @@ namespace PokemonGo.RocketAPI.Helpers
 
             //static for now
             sig.SessionHash = ByteString.CopyFrom(new byte[16] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F });
-
+            sig.Unknown25 = 7363665268261373700;
 
             Unknown6 val = new Unknown6();
             val.RequestType = 6;
@@ -154,7 +171,7 @@ namespace PokemonGo.RocketAPI.Helpers
             {
                 StatusCode = 2, //1
 
-                RequestId = 1469378659230941192, //3
+                RequestId = _nextRequestId++, //3
                 Requests = { customRequests }, //4
 
                 //Unknown6 = , //6
@@ -168,13 +185,14 @@ namespace PokemonGo.RocketAPI.Helpers
             return e;
         }
 
+
         public RequestEnvelope GetInitialRequestEnvelope(params Request[] customRequests)
         {
             var e = new RequestEnvelope
             {
                 StatusCode = 2, //1
 
-                RequestId = 1469378659230941192, //3
+                RequestId = _nextRequestId++, //3
                 Requests = { customRequests }, //4
 
                 //Unknown6 = , //6
@@ -211,11 +229,16 @@ namespace PokemonGo.RocketAPI.Helpers
 
         public static double GenRandom(double num)
         {
-                var randomFactor = 0.3f;
-                var randomMin = (num * (1 - randomFactor));
-                var randomMax = (num * (1 + randomFactor));
-                var randomizedDelay = RandomDevice.NextDouble() * (randomMax - randomMin) + randomMin; ;
-                return randomizedDelay;;
+            var randomFactor = 0.3f;
+            var randomMin = (num * (1 - randomFactor));
+            var randomMax = (num * (1 + randomFactor));
+            var randomizedDelay = RandomDevice.NextDouble() * (randomMax - randomMin) + randomMin; ;
+            return randomizedDelay; ;
+        }
+
+        public static double GenRandom(double min, double max)
+        {
+            return RandomDevice.NextDouble() * (max - min) + min;
         }
     }
 }
