@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-﻿using Google.Protobuf;
+using Google.Protobuf;
 using PokemonGo.RocketAPI.Enums;
 using POGOProtos.Networking;
 using POGOProtos.Networking.Envelopes;
@@ -527,5 +526,4 @@ namespace PokemonGo.RocketAPI.Helpers
             return RandomDevice.NextDouble() * (max - min) + min;
         }
     }
->>>>>>> origin/master
 }
